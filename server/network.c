@@ -66,7 +66,6 @@ int main(int argc, char *argv[])
         return 2;
     }
   while(1){
-    //char * x11_info= getX11coords();
     fprintf(stderr,"got here!\n");
     int ** chunkArr = getChunkArray();
     for(int chunkX = 0;chunkX < 8;chunkX++){
@@ -84,7 +83,6 @@ int main(int argc, char *argv[])
     }
     fprintf(stderr,"\n"); 
     freeChunkArray(chunkArr);
-    //free(x11_info);
   }
     freeaddrinfo(servinfo);
 
@@ -126,30 +124,3 @@ void freeChunkArray(int ** arr){
   for(int ctr =0;ctr< 100;free(arr[ctr]),ctr++);
   free(arr);
 }
-
-char * getX11coords(){
-    XColor c;
-    Display *d = XOpenDisplay((char *) NULL);
-    Screen * def_screen = XDefaultScreenOfDisplay(d);
-    int height = XHeightOfScreen(def_screen);
-    int width = XWidthOfScreen(def_screen);
-    int x=width-1;  // Pixel x 
-    int y=height-1;  // Pixel y
-//    char * x11_str=malloc(sizeof(char) * 100);
-//    sprintf(x11_str,"dimensions: %d x %d\n",width,height);
-//    while(1){
-        XImage *image;
-        image = XGetImage (d, RootWindow (d, DefaultScreen (d)), x, y, 1, 1, AllPlanes, XYPixmap);
-        c.pixel = XGetPixel (image, 0, 0); 
-        XFree (image);
-        XQueryColor (d, DefaultColormap(d, DefaultScreen (d)), &c);
-        int cursor_x,cursor_y;
-        Window  r;  
-        int wx, wy; 
-        unsigned int m;
-        XQueryPointer(d,RootWindow (d, DefaultScreen (d)),&RootWindow (d, DefaultScreen(d)),&r,&cursor_x,&cursor_y,&wx,&wy,&m);
-        char * x11_str = malloc(sizeof(char)*40);
-        sprintf(x11_str,"#%6lx %d %d",c.pixel,cursor_x,cursor_y);//%d %d %d",c.red,c.green,c.blue);
-    return x11_str;
-}
-
