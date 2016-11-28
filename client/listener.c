@@ -108,8 +108,8 @@ int main(void)
 
     Display *d;
     Window w;
-    XEvent e;
-    char *msg = "Hello, World!";
+    //XEvent e;
+    //char *msg = "Hello, World!";
     int screen;
            
     d = XOpenDisplay(NULL);
@@ -156,7 +156,7 @@ int main(void)
             printf("didn't get the right number of bytes bruh\n");
             continue;
         }     
-        int ctr = 0;
+        //int ctr = 0;
         int xcoord;
         xcoord = buf.x;
         printf("xcoord %d\n", xcoord);
