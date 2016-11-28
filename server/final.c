@@ -12,6 +12,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <wait.h>
 
 #define SERVERPORT "4950"    // the port users will be connecting to
 #define BUFSIZE 1024
@@ -38,158 +39,172 @@ void freeChunkArray(int ** arr);
 
 XKeyEvent createKeyEvent(Display *display, Window  * win, Window * winRoot, int press, int keycode, int modifiers);
 void sendMouseEvent(int button,int press);
+void error(char *msg) {
+    perror(msg);
+    exit(0);
+}
 
 
-int main(){
-//SCREENGRAB
-int sockfd;
-    struct addrinfo hints, *servinfo, *p;
-    int rv;
-    int numbytes;
-
-    if (argc != 2) {
-        fprintf(stderr,"usage: talker hostname\n");
-        exit(1);
-    }
-
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_DGRAM;
-
-    if ((rv = getaddrinfo(argv[1], SERVERPORT, &hints, &servinfo)) != 0) {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-        return 1;
-    }
-
-    // loop through all the results and make a socket
-    for(p = servinfo; p != NULL; p = p->ai_next) {
-        if ((sockfd = socket(p->ai_family, p->ai_socktype,
-                p->ai_protocol)) == -1) {
-            perror("talker: socket");
-            continue;
+int main(int argc, char ** argv){
+    int pid1 = fork();
+    //SCREENGRAB
+    if(!pid1){
+        int sockfd;
+        struct addrinfo hints, *servinfo, *p;
+        int rv;
+        int numbytes;
+      
+        if (argc != 3) {
+            fprintf(stderr,"usage: talker hostname\n");
+            exit(1);
         }
-
-        break;
-    }
-
-    if (p == NULL) {
-        fprintf(stderr, "talker: failed to create socket\n");
-        return 2;
-    }
-  while(1){
-    fprintf(stderr,"got here!\n");
-    int ** chunkArr = getChunkArray();
-    for(int chunkX = 0;chunkX < 8;chunkX++){
-      for(int chunkY = 0;chunkY < 8;chunkY++){
-        chunk * ch = getChunk(chunkArr,chunkX,chunkY);
-          fprintf(stderr,"%d %d, ",ch->x,ch->y); 
-          if ((numbytes = sendto(sockfd, ch, sizeof(chunk), 0,
-                   p->ai_addr, p->ai_addrlen)) == -1) {
-              perror("talker: sendto");
-              exit(1);
+      
+        memset(&hints, 0, sizeof hints);
+        hints.ai_family = AF_UNSPEC;
+        hints.ai_socktype = SOCK_DGRAM;
+      
+        if ((rv = getaddrinfo(argv[1], SERVERPORT, &hints, &servinfo)) != 0) {
+            fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+            return 1;
+        }
+      
+        // loop through all the results and make a socket
+        for(p = servinfo; p != NULL; p = p->ai_next) {
+            if ((sockfd = socket(p->ai_family, p->ai_socktype,
+                    p->ai_protocol)) == -1) {
+                perror("talker: socket");
+                continue;
+            }
+      
+            break;
+        }
+      
+        if (p == NULL) {
+            fprintf(stderr, "talker: failed to create socket\n");
+            return 2;
+        }
+        while(1){
+          fprintf(stderr,"got here!\n");
+          int ** chunkArr = getChunkArray();
+          for(int chunkX = 0;chunkX < 8;chunkX++){
+            for(int chunkY = 0;chunkY < 8;chunkY++){
+              chunk * ch = getChunk(chunkArr,chunkX,chunkY);
+                fprintf(stderr,"%d %d, ",ch->x,ch->y); 
+                if ((numbytes = sendto(sockfd, ch, sizeof(chunk), 0,
+                         p->ai_addr, p->ai_addrlen)) == -1) {
+                    perror("talker: sendto");
+                    exit(1);
+                }
+              free(ch);
+              usleep(100000);
+            }
           }
-        free(ch);
-        usleep(100000);
-      }
-    }
-    fprintf(stderr,"\n"); 
-    freeChunkArray(chunkArr);
-  }
-    freeaddrinfo(servinfo);
-
-    printf("talker: sent %d bytes to %s\n", numbytes, argv[1]);
-    close(sockfd);
-//INPUT
-int sockfd, portno, n;
-    struct sockaddr_in serveraddr;
-    struct hostent *server;
-    char *hostname;
-    NetEvent net;
-
-    /* check command line arguments */
-    if (argc != 3) {
-       fprintf(stderr,"usage: %s <hostname> <port>\n", argv[0]);
-       exit(0);
-    }
-    hostname = argv[1];
-    portno = atoi(argv[2]);
-
-    /* socket: create the socket */
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) 
-        error("ERROR opening socket");
-
-    /* gethostbyname: get the server's DNS entry */
-    server = gethostbyname(hostname);
-    if (server == NULL) {
-        fprintf(stderr,"ERROR, no such host as %s\n", hostname);
+          fprintf(stderr,"\n"); 
+          freeChunkArray(chunkArr);
+        }
+        freeaddrinfo(servinfo);
+    
+        printf("talker: sent %d bytes to %s\n", numbytes, argv[1]);
+        close(sockfd);
         exit(0);
     }
-
-    /* build the server's Internet address */
-    bzero((char *) &serveraddr, sizeof(serveraddr));
-    serveraddr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, 
-	  (char *)&serveraddr.sin_addr.s_addr, server->h_length);
-    serveraddr.sin_port = htons(portno);
-
-    /* connect: create a connection with the server */
-    if (connect(sockfd, &serveraddr, sizeof(serveraddr)) < 0) 
-      error("ERROR connecting");
-
-   Display *d;
-   int s;
- 
-                        /* open connection with the server */
-   d = XOpenDisplay(NULL);
-   if (d == NULL) {
-     fprintf(stderr, "Cannot open display\n");
-     exit(1);
-   }
- 
-   s = DefaultScreen(d); 
-
-    while(1){
-      n = read(sockfd, &net, sizeof(NetEvent));
-      if (n < 0) {
-        error("ERROR reading from socket");
-      }
-			Window winFocus;
-			Window winRoot = RootWindow(d, s);
-      int revert;
-      XGetInputFocus(d, &winFocus, &revert);
-      printf("received stuff!\n");
-			if(net.type == KeyPress){
-        printf("received keypress!\n");
-        XKeyEvent event = createKeyEvent(d, &winFocus, &winRoot, 1, net.k, net.modstate);
-        XSendEvent(event.display, event.window, True, KeyPressMask | KeyReleaseMask, (XEvent *)&event);
-        XFlush(d);
-      }else if(net.type == KeyRelease){
-        printf("received keyrelease!\n");
-        XKeyEvent event = createKeyEvent(d, &winFocus, &winRoot, 0, net.k, net.modstate);
-        XSendEvent(event.display, event.window, True, KeyPressMask | KeyReleaseMask, (XEvent *)&event);
-        XFlush(d);
-      }else if(net.type == ButtonPress){
-        sendMouseEvent(net.buttonpress,1);
-				XWarpPointer(d, None, winRoot, 0, 0, 0, 0, net.mx, net.my);
-      }else if(net.type == ButtonRelease){
-        sendMouseEvent(net.buttonpress,0);
-				XWarpPointer(d, None, winRoot, 0, 0, 0, 0, net.mx, net.my);
-      }else if(net.type == MotionNotify){
-        printf("received mouse moved to %d %d!\n",net.mx,net.my);
-				XWarpPointer(d, None, winRoot, 0, 0, 0, 0, net.mx, net.my);
-      }
+//INPUT
+    int pid2 = fork();
+    if(!pid2){
+        int sockfd, portno, n;
+        struct sockaddr_in serveraddr;
+        struct hostent *server;
+        char *hostname;
+        NetEvent net;
+    
+        /* check command line arguments */
+        if (argc != 3) {
+           fprintf(stderr,"usage: %s <hostname> <port>\n", argv[0]);
+           exit(0);
+        }
+        hostname = argv[1];
+        portno = atoi(argv[2]);
+    
+        /* socket: create the socket */
+        sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        if (sockfd < 0) 
+            error("ERROR opening socket");
+    
+        /* gethostbyname: get the server's DNS entry */
+        server = gethostbyname(hostname);
+        if (server == NULL) {
+            fprintf(stderr,"ERROR, no such host as %s\n", hostname);
+            exit(0);
+        }
+    
+        /* build the server's Internet address */
+        bzero((char *) &serveraddr, sizeof(serveraddr));
+        serveraddr.sin_family = AF_INET;
+        bcopy((char *)server->h_addr, 
+    	  (char *)&serveraddr.sin_addr.s_addr, server->h_length);
+        serveraddr.sin_port = htons(portno);
+    
+        /* connect: create a connection with the server */
+        if (connect(sockfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr)) < 0) 
+          error("ERROR connecting");
+    
+       Display *d;
+       int s;
+     
+                            /* open connection with the server */
+       d = XOpenDisplay(NULL);
+       if (d == NULL) {
+         fprintf(stderr, "Cannot open display\n");
+         exit(1);
+       }
+     
+       s = DefaultScreen(d); 
+    
+        while(1){
+          n = read(sockfd, &net, sizeof(NetEvent));
+          if (n < 0) {
+            error("ERROR reading from socket");
+          }
+    			Window winFocus;
+    			Window winRoot = RootWindow(d, s);
+          int revert;
+          XGetInputFocus(d, &winFocus, &revert);
+          printf("received stuff!\n");
+    			if(net.type == KeyPress){
+            printf("received keypress!\n");
+            XKeyEvent event = createKeyEvent(d, &winFocus, &winRoot, 1, net.k, net.modstate);
+            XSendEvent(event.display, event.window, True, KeyPressMask | KeyReleaseMask, (XEvent *)&event);
+            XFlush(d);
+          }else if(net.type == KeyRelease){
+            printf("received keyrelease!\n");
+            XKeyEvent event = createKeyEvent(d, &winFocus, &winRoot, 0, net.k, net.modstate);
+            XSendEvent(event.display, event.window, True, KeyPressMask | KeyReleaseMask, (XEvent *)&event);
+            XFlush(d);
+          }else if(net.type == ButtonPress){
+            sendMouseEvent(net.buttonpress,1);
+    				XWarpPointer(d, None, winRoot, 0, 0, 0, 0, net.mx, net.my);
+          }else if(net.type == ButtonRelease){
+            sendMouseEvent(net.buttonpress,0);
+    				XWarpPointer(d, None, winRoot, 0, 0, 0, 0, net.mx, net.my);
+          }else if(net.type == MotionNotify){
+            printf("received mouse moved to %d %d!\n",net.mx,net.my);
+    				XWarpPointer(d, None, winRoot, 0, 0, 0, 0, net.mx, net.my);
+          }
+        }
+        //printf("Echo from server: %s", buf);
+        close(sockfd);
+        exit(0);
     }
-    //printf("Echo from server: %s", buf);
-    close(sockfd);
-
+    int s1,s2;
+    waitpid(pid1,&s1,0);
+    waitpid(pid2,&s2,0);
+    return 0;
 }
 
 //SCREEN GRAB FUNCTIONS
 
 int ** getChunkArray(){
     Display *d = XOpenDisplay((char *) NULL);
-    Screen * def_screen = XDefaultScreenOfDisplay(d);
     XImage * image = XGetImage (d, RootWindow (d, DefaultScreen (d)), 0, 0, 800, 800,AllPlanes, ZPixmap);
 
     int ** imgarr = (int **)malloc(sizeof(int *)*800);

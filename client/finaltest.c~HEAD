@@ -1,5 +1,6 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <X11/Xatom.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -45,7 +46,51 @@ void *get_in_addr(struct sockaddr *sa)
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-void udpserver(Window w){
+
+
+Window window_from_name_search(Display *display, Window current, char const *needle) {
+  Window retval, root, parent, *children;
+  unsigned children_count;
+  char *name = NULL;
+
+  /* Check if this window has the name we seek */
+  if(XFetchName(display, current, &name) > 0) {
+    int r = strcmp(needle, name);
+    XFree(name);
+    if(r == 0) {
+      return current;
+    }
+  }
+
+  retval = 0;
+
+  /* If it does not: check all subwindows recursively. */
+  if(0 != XQueryTree(display, current, &root, &parent, &children, &children_count)) {
+    unsigned i;
+    for(i = 0; i < children_count; ++i) {
+      Window win = window_from_name_search(display, children[i], needle);
+
+      if(win != 0) {
+        retval = win;
+        break;
+      }
+    }
+
+    XFree(children);
+  }
+
+  return retval;
+}
+
+// frontend function: open display connection, start searching from the root window.
+Window window_from_name(char const *name) {
+  Display *display = XOpenDisplay(NULL);
+  Window w = window_from_name_search(display, XDefaultRootWindow(display), name);
+  XCloseDisplay(display);
+  return w;
+}
+
+void tcpserver(){
     printf("running udpserver");
     Display * d;
     XEvent e;
@@ -56,9 +101,14 @@ void udpserver(Window w){
         perror("display\n");
         exit(1);
     }
-
-    screen = DefaultScreen(d);
-    //w = XCreateSimpleWindow(d, RootWindow(d,screen), 10, 10, 100, 100, 1, BlackPixel(d,screen), WhitePixel(d,screen));*/
+    /*Window root_return;
+    Window parent_return;
+    Window * children_return;
+    unsigned int numchildren;
+    XQueryTree(d, DefaultRootWindow(d), &root_return, &parent_return, &children_return, &numchildren);*/
+	screen = DefaultScreen(d);
+    //Window w= XCreateSimpleWindow(d, RootWindow(d,screen), 10, 10, 100, 100, 1, BlackPixel(d,screen), WhitePixel(d,screen));
+	Window w = window_from_name("helloworld");
 XSelectInput(d, w, ExposureMask | KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | EnterWindowMask | LeaveWindowMask | PointerMotionMask);
 XMapWindow(d,w);  
     int s;
@@ -70,7 +120,7 @@ XMapWindow(d,w);
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE;
     printf("hello\n");
-    s = getaddrinfo(NULL, "9001", &hints, &result);
+    s = getaddrinfo(NULL, "1234", &hints, &result);
     if (s != 0) {
             fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
             exit(1);
@@ -152,10 +202,13 @@ int main(void)
     }
     screen = DefaultScreen(d);
     Window w = XCreateSimpleWindow(d, RootWindow(d, screen), 0, 0, 1500, 1500, 1, BlackPixel(d, screen), WhitePixel(d, screen));
-
+    char * windowname;
+    XStoreName(d,w, "helloworld");
+    XFetchName(d,w, &windowname);
+    printf("window name: %s\n", windowname);
     int child = fork();
     if(child == 0){
-        udpserver(w);
+        tcpserver();
         return 0;
     }
     int sockfd;
@@ -205,45 +258,7 @@ int main(void)
     printf("listener: waiting to recvfrom...\n");
 
     addr_len = sizeof(their_addr);
-<<<<<<< HEAD:client/listener.c
-
-    /*Display * display = XOpenDisplay((char*) NULL);
-	Window parent;
-	int x, y;
-	int width, height;
-	int border_width, border, background;
-	Window w = XCreateSimpleWindow(&display, parent, x, y, width, height, border_width, border, background);
-    int width = 100;
-    int height = 100;
-    int depth = 32;
-    int bitmap_pad = 32;
-    int bytes_per_line = 0;
-    Display * display = XOpenDisplay(0);
-    if(display == NULL){
-        fprintf(stderr, "Cannot open display\n");
-        exit(1);
-    }
-        int screen = DefaultScreen(display);
-    Window w = XCreateSimpleWindow(display, RootWindow(display, screen), 10, 10, 100, 100, 1, BlackPixel(display, screen), WhitePixel(display, screen));
-    XSetWindowBackgroundPixmap(display, w, pixelmap);
-    XMapWindow(display, w);*/
-
-    Display *d;
-    Window w;
-    //XEvent e;
-    //char *msg = "Hello, World!";
-    int screen;
-           
-    d = XOpenDisplay(NULL);
-    if (d == NULL) {
-        fprintf(stderr, "Cannot open display\n");
-        exit(1);
-    }
-    screen = DefaultScreen(d);
-    w = XCreateSimpleWindow(d, RootWindow(d, screen), 0, 0, 1500, 1500, 1, BlackPixel(d, screen), WhitePixel(d, screen));
-=======
->>>>>>> 0773cfe696951cd53f7c0a31e58da074b3ae071d:client/finaltest.c
-    XSelectInput(d, w, ExposureMask | KeyPressMask);
+    XSelectInput(d, w, KeyPressMask);
     XMapWindow(d, w);
                                
     int height = 800;
@@ -263,7 +278,7 @@ int main(void)
             printf("didn't get the right number of bytes bruh\n");
             continue;
         }     
-        //int ctr = 0;
+        int ctr = 0;
         int xcoord;
         xcoord = buf.x;
         printf("xcoord %d\n", xcoord);

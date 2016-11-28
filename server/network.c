@@ -15,7 +15,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
-#define SERVERPORT "4950"    // the port users will be connecting to
+#define SERVERPORT "80"    // the port users will be connecting to
 
 typedef struct _chunk{
   int pixels[100][100];
@@ -94,7 +94,6 @@ int main(int argc, char *argv[])
 
 int ** getChunkArray(){
     Display *d = XOpenDisplay((char *) NULL);
-    Screen * def_screen = XDefaultScreenOfDisplay(d);
     XImage * image = XGetImage (d, RootWindow (d, DefaultScreen (d)), 0, 0, 800, 800,AllPlanes, ZPixmap);
 
     int ** imgarr = (int **)malloc(sizeof(int *)*800);
