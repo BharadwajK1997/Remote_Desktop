@@ -16,9 +16,12 @@
 
 #define SERVERPORT "4950"    // the port users will be connecting to
 #define BUFSIZE 1024
-
+#define delay 5000
+#define imgwidth 3000
+#define imgheight 1500
+#define chunksize 125
 typedef struct _chunk{
-  int pixels[100][100];
+  int pixels[chunksize][chunksize];
   int x;
   int y;
 } chunk;
@@ -58,7 +61,7 @@ int main(int argc, char ** argv){
             fprintf(stderr,"usage: talker hostname\n");
             exit(1);
         }
-      
+        
         memset(&hints, 0, sizeof hints);
         hints.ai_family = AF_UNSPEC;
         hints.ai_socktype = SOCK_DGRAM;
@@ -86,8 +89,8 @@ int main(int argc, char ** argv){
         while(1){
           fprintf(stderr,"got here!\n");
           int ** chunkArr = getChunkArray();
-          for(int chunkX = 0;chunkX < 8;chunkX++){
-            for(int chunkY = 0;chunkY < 8;chunkY++){
+          for(int chunkX = 0;chunkX < imgwidth/chunksize;chunkX++){
+            for(int chunkY = 0;chunkY < imgheight/chunksize;chunkY++){
               chunk * ch = getChunk(chunkArr,chunkX,chunkY);
                 fprintf(stderr,"%d %d, ",ch->x,ch->y); 
                 if ((numbytes = sendto(sockfd, ch, sizeof(chunk), 0,
@@ -96,7 +99,7 @@ int main(int argc, char ** argv){
                     exit(1);
                 }
               free(ch);
-              usleep(100000);
+              usleep(delay);
             }
           }
           fprintf(stderr,"\n"); 
@@ -205,25 +208,26 @@ int main(int argc, char ** argv){
 
 int ** getChunkArray(){
     Display *d = XOpenDisplay((char *) NULL);
-    XImage * image = XGetImage (d, RootWindow (d, DefaultScreen (d)), 0, 0, 800, 800,AllPlanes, ZPixmap);
+    XImage * image = XGetImage (d, RootWindow (d, DefaultScreen (d)), 0, 0, imgwidth, imgheight,AllPlanes, ZPixmap);
 
-    int ** imgarr = (int **)malloc(sizeof(int *)*800);
-    for(int ctrx = 0;ctrx < 800;ctrx++){
-      imgarr[ctrx] = (int *) malloc(800 *sizeof(int));
-      for(int ctry=0;ctry<800;ctry++){
+    int ** imgarr = (int **)malloc(sizeof(int *)*imgwidth);
+    for(int ctrx = 0;ctrx < imgwidth;ctrx++){
+      imgarr[ctrx] = (int *) malloc(imgheight *sizeof(int));
+      for(int ctry=0;ctry< imgheight;ctry++){
         imgarr[ctrx][ctry]=(int)XGetPixel(image,ctrx,ctry);
       }
     }
     XFree(image);
+    XCloseDisplay(d);
     return imgarr;
 }
 
 chunk * getChunk(int ** imgarr,int chunkX,int chunkY){
   chunk * c = (chunk *)malloc(sizeof(chunk));
-  c->x=chunkX * 100;
-  c->y=chunkY * 100;
-  for(int ctrx=0;ctrx<100;ctrx++){
-    for(int ctry=0;ctry<100;ctry++){
+  c->x=chunkX*chunksize;//htonl(chunkX * 100);
+  c->y=chunkY*chunksize;//htonl(chunkY * 100);
+  for(int ctrx=0;ctrx<chunksize;ctrx++){
+    for(int ctry=0;ctry<chunksize;ctry++){
       c->pixels[ctrx][ctry] = imgarr[ctrx+c->x][ctry+c->y];
     }
   }
@@ -231,7 +235,7 @@ chunk * getChunk(int ** imgarr,int chunkX,int chunkY){
 }
 
 void freeChunkArray(int ** arr){
-  for(int ctr =0;ctr< 100;free(arr[ctr]),ctr++);
+  for(int ctr =0;ctr< chunksize;free(arr[ctr]),ctr++);
   free(arr);
 }
 
