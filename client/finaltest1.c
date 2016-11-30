@@ -16,11 +16,14 @@
 
 #define MYPORT "4950"    // the port users will be connecting to
 
-#define MAXBUFLEN 100*101*sizeof(int)
+#define MAXBUFLEN chunksize*(chunksize+1)*sizeof(int)
 
-
+#define height_image 1500
+#define width_image 3000
+#define scale_factor 2
+#define chunksize 125
 typedef struct pixelarray{
-    int pixels[100][100];
+    int pixels[chunksize][chunksize];
     int x;
     int y;
 }pixelarray;
@@ -166,8 +169,8 @@ XMapWindow(d,w);
             write(client_fd, &data, sizeof(myEvent));
         }
         else if(e.type == ButtonPress){
-            data.x = e.xbutton.x;
-            data.y = e.xbutton.y;
+            data.x = e.xbutton.x*scale_factor;
+            data.y = e.xbutton.y*scale_factor;
             data.buttonpress = e.xbutton.button;
             data.type = e.type;
             printf("writing: %d %d %d %d\n", data.x, data.y, data.buttonpress, data.type);
@@ -175,12 +178,18 @@ XMapWindow(d,w);
         }
         else if(e.type == ButtonRelease){
             data.type = e.type;
-            data.x = e.xbutton.x;
-            data.y = e.xbutton.y;
+            data.x = e.xbutton.x*scale_factor;
+            data.y = e.xbutton.y*scale_factor;
             data.buttonpress = e.xbutton.button;
             printf("writing: %d %d %d %d\n", data.x, data.y, data.buttonpress, data.type);
             write(client_fd, &data, sizeof(myEvent));
         }
+	else if(e.type == MotionNotify){
+	    data.x = e.xmotion.x*scale_factor;
+	    data.y = e.xmotion.y*scale_factor;
+	    data.type = e.type;
+	    write(client_fd, &data, sizeof(myEvent));
+	}
     }
     close(sock_fd);
 /*
@@ -261,9 +270,9 @@ int main(void)
     XSelectInput(d, w, KeyPressMask);
     XMapWindow(d, w);
                                
-    int height = 800;
-    int width = 800;
-    XImage *im = XCreateImage(d, XDefaultVisual(d, screen), DisplayPlanes(d,screen), ZPixmap, 0, (char*)NULL, height, width, 32, 0);
+    int height = height_image/scale_factor;
+    int width = width_image/scale_factor;
+    XImage *im = XCreateImage(d, XDefaultVisual(d, screen), DisplayPlanes(d,screen), ZPixmap, 0, (char*)NULL, width, height, 32, 0);
     im->data = malloc(im->bytes_per_line * height); 
     XInitImage(im);
     
@@ -274,7 +283,7 @@ int main(void)
             printf("recvfrom");
             exit(1);
         }
-        if(numbytes != (100*100)*sizeof(int) + 2*sizeof(int)){
+        if(numbytes != (chunksize*chunksize)*sizeof(int) + 2*sizeof(int)){
             printf("didn't get the right number of bytes bruh\n");
             continue;
         }     
@@ -295,9 +304,9 @@ int main(void)
         }
         XPutImage(d, w, DefaultGC(d, screen), im, 0,0, xcoord, ycoord, width, height);
         */
-        for(int xiter = 0; xiter<100; xiter++){
-            for(int yiter = 0; yiter<100; yiter++){
-                XPutPixel(im, xcoord + xiter, ycoord + yiter, buf.pixels[xiter][yiter]);
+        for(int xiter = 0; xiter<chunksize; xiter+=2){
+            for(int yiter = 0; yiter<chunksize; yiter+=2){
+                XPutPixel(im, (xcoord + xiter)/2, (ycoord + yiter)/2, buf.pixels[xiter][yiter]);
             }
         }
         XPutImage(d, w, DefaultGC(d, screen), im, 0,0, 0, 0,  width, height);
