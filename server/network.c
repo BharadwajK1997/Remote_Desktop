@@ -15,13 +15,18 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
-#define SERVERPORT "80"    // the port users will be connecting to
+#define SERVERPORT "4950"    // the port users will be connecting to
 
 typedef struct _chunk{
-  int pixels[100][100];
   int x;
   int y;
+  int pixels[100][100];
 } chunk;
+
+typedef struct str{
+    int a;
+    int b;
+} stru;
 
 
 char * getX11coords();
@@ -72,7 +77,12 @@ int main(int argc, char *argv[])
       for(int chunkY = 0;chunkY < 8;chunkY++){
         chunk * ch = getChunk(chunkArr,chunkX,chunkY);
           fprintf(stderr,"%d %d, ",ch->x,ch->y); 
-          if ((numbytes = sendto(sockfd, ch, sizeof(chunk), 0,
+        chunk ch2= *ch;
+//          stru str;
+//          str.a=123456789;
+//          str.b=234567891;
+//          if ((numbytes = sendto(sockfd, &str, sizeof(str), 0,
+          if ((numbytes = sendto(sockfd, &ch2, sizeof(chunk), 0,
                    p->ai_addr, p->ai_addrlen)) == -1) {
               perror("talker: sendto");
               exit(1);
