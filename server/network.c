@@ -71,17 +71,11 @@ int main(int argc, char *argv[])
         return 2;
     }
   while(1){
-    fprintf(stderr,"got here!\n");
     int ** chunkArr = getChunkArray();
     for(int chunkX = 0;chunkX < 8;chunkX++){
       for(int chunkY = 0;chunkY < 8;chunkY++){
         chunk * ch = getChunk(chunkArr,chunkX,chunkY);
-          fprintf(stderr,"%d %d, ",ch->x,ch->y); 
         chunk ch2= *ch;
-//          stru str;
-//          str.a=123456789;
-//          str.b=234567891;
-//          if ((numbytes = sendto(sockfd, &str, sizeof(str), 0,
           if ((numbytes = sendto(sockfd, &ch2, sizeof(chunk), 0,
                    p->ai_addr, p->ai_addrlen)) == -1) {
               perror("talker: sendto");
@@ -91,12 +85,10 @@ int main(int argc, char *argv[])
         usleep(100000);
       }
     }
-    fprintf(stderr,"\n"); 
     freeChunkArray(chunkArr);
   }
     freeaddrinfo(servinfo);
 
-    printf("talker: sent %d bytes to %s\n", numbytes, argv[1]);
     close(sockfd);
 
     return 0;

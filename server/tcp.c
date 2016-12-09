@@ -79,23 +79,6 @@ int main(int argc, char **argv) {
     /* connect: create a connection with the server */
     if (connect(sockfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr)) < 0) 
       error("ERROR connecting");
-
-//    /* get message line from the user */
-//    printf("Please enter msg: ");
-//    bzero(buf, BUFSIZE);
-//    fgets(buf, BUFSIZE, stdin);
-
-    /* send the message line to the server */
-    //n = write(sockfd, buf, strlen(buf));
-    //fprintf(sockfd,"hi\n");
-//    FILE * f = fdopen(sockfd,"r+");
-//    if (f == NULL) 
-//      error("ERROR writing to socket");
-//    else
-//      fprintf(f,"hi\n");
-
-    /* print the server's reply */
-    //bzero(buf, BUFSIZE);
    Display *d;
    int s;
  
@@ -117,14 +100,11 @@ int main(int argc, char **argv) {
 			Window winRoot = RootWindow(d, s);
       int revert;
       XGetInputFocus(d, &winFocus, &revert);
-      printf("received stuff!\n");
 			if(net.type == KeyPress){
-        printf("received keypress!\n");
         XKeyEvent event = createKeyEvent(d, &winFocus, &winRoot, 1, net.k, net.modstate);
         XSendEvent(event.display, event.window, True, KeyPressMask | KeyReleaseMask, (XEvent *)&event);
         XFlush(d);
       }else if(net.type == KeyRelease){
-        printf("received keyrelease!\n");
         XKeyEvent event = createKeyEvent(d, &winFocus, &winRoot, 0, net.k, net.modstate);
         XSendEvent(event.display, event.window, True, KeyPressMask | KeyReleaseMask, (XEvent *)&event);
         XFlush(d);
@@ -135,11 +115,9 @@ int main(int argc, char **argv) {
         sendMouseEvent(net.buttonpress,0);
 				XWarpPointer(d, None, winRoot, 0, 0, 0, 0, net.mx, net.my);
       }else if(net.type == MotionNotify){
-        printf("received mouse moved to %d %d!\n",net.mx,net.my);
 				XWarpPointer(d, None, winRoot, 0, 0, 0, 0, net.mx, net.my);
       }
     }
-    //printf("Echo from server: %s", buf);
     close(sockfd);
     return 0;
 }
@@ -183,13 +161,12 @@ void sendMouseEvent(int button,int press){
   event.xbutton.button = button;
   event.xbutton.same_screen = True;
 	XQueryPointer(display, RootWindow(display, DefaultScreen(display)), &event.xbutton.root, &event.xbutton.window, &event.xbutton.x_root, &event.xbutton.y_root, &event.xbutton.x, &event.xbutton.y, &event.xbutton.state);
-  event.xbutton.subwindow = event.xbutton.root;//event.xbutton.window;
+  event.xbutton.subwindow = event.xbutton.root;
 	while(event.xbutton.subwindow){
   	event.xbutton.window = event.xbutton.subwindow;
   	XQueryPointer(display, event.xbutton.window, &event.xbutton.root, &event.xbutton.subwindow, &event.xbutton.x_root, &event.xbutton.y_root, &event.xbutton.x, &event.xbutton.y, &event.xbutton.state);
   }
 
-//    XRaiseWindow(display,event.xbutton.window);
    if(XSendEvent(display, PointerWindow, True, 0xfff, &event) == 0)
 			fprintf(stderr, "Error\n");
 
