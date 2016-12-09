@@ -14,8 +14,8 @@
 #include <pthread.h>
 #include <sys/wait.h>
 
-#define MYPORT "4950"    // the port users will be connecting to
-
+#define UDPPORT "4950"    // UDP Port for receiving chunks
+#define TCPPORT "1234"
 #define MAXBUFLEN chunksize*(chunksize+1)*sizeof(int)
 
 #define height_image 1500
@@ -82,7 +82,6 @@ Window window_from_name(char const *name) {
 }
 
 void tcpserver(){
-    printf("running udpserver");
     Display * d;
     XEvent e;
     int screen;
@@ -104,8 +103,7 @@ void tcpserver(){
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE;
-    printf("hello\n");
-    s = getaddrinfo(NULL, "1234", &hints, &result);
+    s = getaddrinfo(NULL, TCPPORT, &hints, &result);
     if (s != 0) {
             fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
             exit(1);
@@ -190,7 +188,6 @@ int main(void)
     char * windowname;
     XStoreName(d,w, "helloworld");
     XFetchName(d,w, &windowname);
-    printf("window name: %s\n", windowname);
     int child = fork();
     if(child == 0){
         tcpserver();
@@ -212,7 +209,7 @@ int main(void)
     hints.ai_socktype = SOCK_DGRAM;
     hints.ai_flags = AI_PASSIVE; // use my IP
 
-    if ((rv = getaddrinfo(NULL, MYPORT, &hints, &servinfo)) != 0) {
+    if ((rv = getaddrinfo(NULL, UDPPORT, &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return 1;
     }
@@ -281,7 +278,6 @@ int main(void)
     waitpid(child, &status, 0);
     close(sockfd);
     XCloseDisplay(d);
-    printf("closing\n");
     return 0;
 }
 
